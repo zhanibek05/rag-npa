@@ -11,7 +11,7 @@
 
 ## 1) Требования
 
-- Python `3.10+` (у вас сейчас `3.14`, это ок)
+- Python `3.10+` 
 - Linux/macOS (ниже команды для bash)
 - Установленный Ollama для генерации ответов
 
@@ -21,7 +21,6 @@
 ## 2) Установка
 
 ```bash
-cd /home/zhanibek/projects/diploma/rag_npa
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
