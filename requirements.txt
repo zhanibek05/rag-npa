@@ -9,3 +9,8 @@ click
 
 # Llama runner (pick one later)
 llama-cpp-python
+
+# FastAPI Backend
+fastapi
+uvicorn[standard]
+python-multipart
