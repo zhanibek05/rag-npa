@@ -1,13 +1,31 @@
-import json
-import os
 from typing import List, Optional
 
-import faiss
-import requests
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
-from sentence_transformers import SentenceTransformer
+
+try:
+    from src.core.config import (
+        EMBEDDING_DEVICE,
+        EMBEDDING_MODEL,
+        INDEX_PATH,
+        META_PATH,
+        OLLAMA_MODEL,
+    )
+    from src.core.retrieval import RetrievalEngine
+    from src.core.service import RAGService
+except ModuleNotFoundError as exc:
+    if not exc.name.startswith("src"):
+        raise
+    from core.config import (
+        EMBEDDING_DEVICE,
+        EMBEDDING_MODEL,
+        INDEX_PATH,
+        META_PATH,
+        OLLAMA_MODEL,
+    )
+    from core.retrieval import RetrievalEngine
+    from core.service import RAGService
 
 app = FastAPI(title="RAG NPA API")
 
@@ -20,15 +38,8 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Глобальные переменные для моделей
-INDEX_PATH = "./data/faiss.index"
-META_PATH = "./data/chunks_meta.jsonl"
-EMBEDDING_MODEL = "sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2"
-OLLAMA_MODEL = "llama3.1:8b"
-
-index = None
-meta = None
-emb_model = None
+retrieval_engine: Optional[RetrievalEngine] = None
+rag_service: Optional[RAGService] = None
 
 
 class SearchRequest(BaseModel):
@@ -57,137 +68,69 @@ class AnswerResponse(BaseModel):
 
 @app.on_event("startup")
 async def load_models():
-    global index, meta, emb_model
-    
-    if not os.path.exists(INDEX_PATH):
-        raise RuntimeError("Index not found. Run build_index.py first.")
-    
-    # Загрузка индекса
-    index = faiss.read_index(INDEX_PATH)
-    
-    # Загрузка метаданных
-    meta = []
-    with open(META_PATH, "r", encoding="utf-8") as f:
-        for line in f:
-            if line.strip():
-                meta.append(json.loads(line))
-    
-    # Загрузка модели эмбеддингов
-    emb_model = SentenceTransformer(EMBEDDING_MODEL, device="cpu")
-    
-    print(f"✓ Loaded index with {len(meta)} chunks")
+    global retrieval_engine, rag_service
+
+    retrieval_engine = RetrievalEngine(
+        index_path=INDEX_PATH,
+        meta_path=META_PATH,
+        embedding_model=EMBEDDING_MODEL,
+        device=EMBEDDING_DEVICE,
+    )
+    retrieval_engine.load()
+    rag_service = RAGService(retrieval=retrieval_engine, ollama_model=OLLAMA_MODEL)
+
+    print(f"✓ Loaded index with {len(retrieval_engine.meta)} chunks")
 
 
 @app.get("/health")
 async def health():
+    chunks_count = len(retrieval_engine.meta) if retrieval_engine else 0
     return {
         "status": "ok",
-        "index_loaded": index is not None,
-        "chunks_count": len(meta) if meta else 0
+        "index_loaded": retrieval_engine.is_ready() if retrieval_engine else False,
+        "chunks_count": chunks_count,
     }
+
+
+def _ensure_ready() -> RAGService:
+    if not rag_service or not retrieval_engine or not retrieval_engine.is_ready():
+        raise HTTPException(status_code=503, detail="Models not loaded")
+    return rag_service
+
+
+def _to_search_result(item: dict, score: float) -> SearchResult:
+    return SearchResult(
+        id=item["id"],
+        text=item["text"],
+        score=float(score),
+        source_url=item.get("source_url"),
+        title=item.get("title"),
+    )
 
 
 @app.post("/search", response_model=List[SearchResult])
 async def search(req: SearchRequest):
     """Семантический поиск по индексу"""
-    if not index or not meta or not emb_model:
-        raise HTTPException(status_code=503, detail="Models not loaded")
-    
-    # Векторизация запроса
-    q_emb = emb_model.encode([req.query], normalize_embeddings=True, convert_to_numpy=True)
-    
-    # Поиск
-    scores, ids = index.search(q_emb, req.top_k)
-    
-    results = []
-    for idx, score in zip(ids[0], scores[0]):
-        if idx < 0 or idx >= len(meta):
-            continue
-        
-        item = meta[idx]
-        results.append(SearchResult(
-            id=item["id"],
-            text=item["text"],
-            score=float(score),
-            source_url=item.get("source_url"),
-            title=item.get("title")
-        ))
-    
-    return results
+    service = _ensure_ready()
+    hits, scores = service.search_with_scores(query=req.query, top_k=req.top_k)
+    return [_to_search_result(item, score) for item, score in zip(hits, scores)]
 
 
 @app.post("/answer", response_model=AnswerResponse)
 async def answer(req: AnswerRequest):
     """Генерация ответа через RAG + Ollama"""
-    if not index or not meta or not emb_model:
-        raise HTTPException(status_code=503, detail="Models not loaded")
-    
-    # Поиск релевантных чанков
-    q_emb = emb_model.encode([req.query], normalize_embeddings=True, convert_to_numpy=True)
-    scores, ids = index.search(q_emb, req.top_k)
-    
-    hits = []
-    sources = []
-    for idx, score in zip(ids[0], scores[0]):
-        if idx < 0 or idx >= len(meta):
-            continue
-        
-        item = meta[idx]
-        hits.append(item)
-        sources.append(SearchResult(
-            id=item["id"],
-            text=item["text"],
-            score=float(score),
-            source_url=item.get("source_url"),
-            title=item.get("title")
-        ))
-    
-    # Построение контекста
-    context = build_context(hits, max_chars=req.max_context_chars)
-    
-    # Генерация ответа через Ollama
-    prompt = (
-        "Ты ассистент по нормативно-правовым актам в сфере образования. "
-        "Ответь кратко и по сути, опираясь ТОЛЬКО на приведенные источники. "
-        "Если информации недостаточно — скажи об этом.\n\n"
-        f"Вопрос: {req.query}\n\n"
-        f"Источники:\n{context}\n\n"
-        "Ответ:"
-    )
-    
+    service = _ensure_ready()
     try:
-        answer_text = ollama_generate(OLLAMA_MODEL, prompt)
+        answer_text, hits, scores = service.answer(
+            query=req.query,
+            top_k=req.top_k,
+            max_context_chars=req.max_context_chars,
+        )
     except Exception as e:
         raise HTTPException(status_code=503, detail=f"Ollama error: {str(e)}")
-    
+
+    sources = [_to_search_result(item, score) for item, score in zip(hits, scores)]
     return AnswerResponse(answer=answer_text, sources=sources)
-
-
-def build_context(chunks: List[dict], max_chars: int = 3000) -> str:
-    parts = []
-    total = 0
-    for i, c in enumerate(chunks, start=1):
-        text = c["text"].strip()
-        block = f"[Источник {i}]\n{text}"
-        if total + len(block) > max_chars:
-            break
-        parts.append(block)
-        total += len(block)
-    return "\n\n".join(parts)
-
-
-def ollama_generate(model: str, prompt: str, temperature: float = 0.2) -> str:
-    url = "http://localhost:11434/api/generate"
-    payload = {
-        "model": model,
-        "prompt": prompt,
-        "stream": False,
-        "options": {"temperature": temperature},
-    }
-    resp = requests.post(url, json=payload, timeout=120)
-    resp.raise_for_status()
-    data = resp.json()
-    return data.get("response", "").strip()
 
 
 if __name__ == "__main__":

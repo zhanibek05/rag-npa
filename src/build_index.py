@@ -1,21 +1,16 @@
 import argparse
 import json
 import os
-from typing import List
 
 import faiss
-import numpy as np
 from sentence_transformers import SentenceTransformer
 
-
-def load_chunks(path: str):
-    chunks = []
-    with open(path, "r", encoding="utf-8") as f:
-        for line in f:
-            if not line.strip():
-                continue
-            chunks.append(json.loads(line))
-    return chunks
+try:
+    from src.core.io import load_jsonl
+except ModuleNotFoundError as exc:
+    if not exc.name.startswith("src"):
+        raise
+    from core.io import load_jsonl
 
 
 def main():
@@ -26,7 +21,7 @@ def main():
     parser.add_argument("--batch-size", type=int, default=32)
     args = parser.parse_args()
 
-    chunks = load_chunks(args.chunks)
+    chunks = load_jsonl(args.chunks)
     texts = [c["text"] for c in chunks]
 
     model = SentenceTransformer(args.model)

@@ -1,47 +1,36 @@
 import argparse
-import json
-import os
-from typing import List
 
-import faiss
-import numpy as np
-from sentence_transformers import SentenceTransformer
-
-
-def load_meta(path: str):
-    meta = []
-    with open(path, "r", encoding="utf-8") as f:
-        for line in f:
-            if not line.strip():
-                continue
-            meta.append(json.loads(line))
-    return meta
+try:
+    from src.core.config import EMBEDDING_MODEL, INDEX_PATH, META_PATH
+    from src.core.retrieval import RetrievalEngine
+except ModuleNotFoundError as exc:
+    if not exc.name.startswith("src"):
+        raise
+    from core.config import EMBEDDING_MODEL, INDEX_PATH, META_PATH
+    from core.retrieval import RetrievalEngine
 
 
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("query")
-    parser.add_argument("--index", default="./data/faiss.index")
-    parser.add_argument("--meta", default="./data/chunks_meta.jsonl")
-    parser.add_argument("--model", default="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+    parser.add_argument("--index", default=INDEX_PATH)
+    parser.add_argument("--meta", default=META_PATH)
+    parser.add_argument("--model", default=EMBEDDING_MODEL)
+    parser.add_argument("--device", default="cpu", choices=["cpu", "cuda"])
     parser.add_argument("--top-k", type=int, default=5)
     args = parser.parse_args()
 
-    if not os.path.exists(args.index):
-        raise SystemExit("Index not found. Run build_index.py first.")
-
-    meta = load_meta(args.meta)
-    index = faiss.read_index(args.index)
-    model = SentenceTransformer(args.model)
-
-    q_emb = model.encode([args.query], normalize_embeddings=True, convert_to_numpy=True)
-    scores, ids = index.search(q_emb, args.top_k)
+    retrieval = RetrievalEngine(
+        index_path=args.index,
+        meta_path=args.meta,
+        embedding_model=args.model,
+        device=args.device,
+    )
+    retrieval.load()
+    hits, scores = retrieval.search_with_scores(query=args.query, top_k=args.top_k)
 
     print("\n=== Top results ===\n")
-    for rank, (idx, score) in enumerate(zip(ids[0], scores[0]), start=1):
-        if idx < 0 or idx >= len(meta):
-            continue
-        item = meta[idx]
+    for rank, (item, score) in enumerate(zip(hits, scores), start=1):
         text = item["text"].replace("\n", " ")
         if len(text) > 500:
             text = text[:500] + "..."
