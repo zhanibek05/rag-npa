@@ -1,13 +1,13 @@
 import argparse
 
 try:
-    from src.core.config import EMBEDDING_MODEL, INDEX_PATH, META_PATH, OLLAMA_MODEL
+    from src.core.config import EMBEDDING_MODEL, INDEX_PATH, LLM_MODEL, LLM_PROVIDER, META_PATH
     from src.core.retrieval import RetrievalEngine
     from src.core.service import RAGService
 except ModuleNotFoundError as exc:
     if not exc.name.startswith("src"):
         raise
-    from core.config import EMBEDDING_MODEL, INDEX_PATH, META_PATH, OLLAMA_MODEL
+    from core.config import EMBEDDING_MODEL, INDEX_PATH, LLM_MODEL, LLM_PROVIDER, META_PATH
     from core.retrieval import RetrievalEngine
     from core.service import RAGService
 
@@ -20,7 +20,8 @@ def main():
     parser.add_argument("--model", default=EMBEDDING_MODEL)
     parser.add_argument("--device", default="cpu", choices=["cpu", "cuda"], help="Device for embedding model")
     parser.add_argument("--top-k", type=int, default=5)
-    parser.add_argument("--ollama-model", default=OLLAMA_MODEL)
+    parser.add_argument("--llm-model", default=LLM_MODEL)
+    parser.add_argument("--llm-provider", default=LLM_PROVIDER, choices=["ollama", "openai"])
     parser.add_argument("--max-context-chars", type=int, default=3000)
     args = parser.parse_args()
 
@@ -31,7 +32,11 @@ def main():
         device=args.device,
     )
     retrieval.load()
-    service = RAGService(retrieval=retrieval, ollama_model=args.ollama_model)
+    service = RAGService(
+        retrieval=retrieval,
+        llm_model=args.llm_model,
+        llm_provider=args.llm_provider,
+    )
     answer, _, _ = service.answer(
         query=args.query,
         top_k=args.top_k,

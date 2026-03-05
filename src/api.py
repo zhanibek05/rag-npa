@@ -9,8 +9,9 @@ try:
         EMBEDDING_DEVICE,
         EMBEDDING_MODEL,
         INDEX_PATH,
+        LLM_MODEL,
+        LLM_PROVIDER,
         META_PATH,
-        OLLAMA_MODEL,
     )
     from src.core.retrieval import RetrievalEngine
     from src.core.service import RAGService
@@ -21,8 +22,9 @@ except ModuleNotFoundError as exc:
         EMBEDDING_DEVICE,
         EMBEDDING_MODEL,
         INDEX_PATH,
+        LLM_MODEL,
+        LLM_PROVIDER,
         META_PATH,
-        OLLAMA_MODEL,
     )
     from core.retrieval import RetrievalEngine
     from core.service import RAGService
@@ -77,7 +79,11 @@ async def load_models():
         device=EMBEDDING_DEVICE,
     )
     retrieval_engine.load()
-    rag_service = RAGService(retrieval=retrieval_engine, ollama_model=OLLAMA_MODEL)
+    rag_service = RAGService(
+        retrieval=retrieval_engine,
+        llm_model=LLM_MODEL,
+        llm_provider=LLM_PROVIDER,
+    )
 
     print(f"✓ Loaded index with {len(retrieval_engine.meta)} chunks")
 
@@ -118,7 +124,7 @@ async def search(req: SearchRequest):
 
 @app.post("/answer", response_model=AnswerResponse)
 async def answer(req: AnswerRequest):
-    """Генерация ответа через RAG + Ollama"""
+    """Генерация ответа через RAG + LLM provider"""
     service = _ensure_ready()
     try:
         answer_text, hits, scores = service.answer(
@@ -127,7 +133,7 @@ async def answer(req: AnswerRequest):
             max_context_chars=req.max_context_chars,
         )
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Ollama error: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"LLM error: {str(e)}")
 
     sources = [_to_search_result(item, score) for item, score in zip(hits, scores)]
     return AnswerResponse(answer=answer_text, sources=sources)

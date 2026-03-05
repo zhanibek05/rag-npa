@@ -15,13 +15,23 @@ python src/build_corpus.py
 python src/build_index.py
 ```
 
-## 3) Запуск сервисов
+## 3) Настройка `.env` (без export)
+
+По умолчанию уже стоит `LLM_PROVIDER=ollama`.
+
+Если нужен OpenAI:
+- `LLM_PROVIDER=openai`
+- `OPENAI_API_KEY=...`
+- (опционально) `OPENAI_MODEL=gpt-4o-mini`
+
+## 4) Запуск сервисов
 
 Терминал 1 (Ollama):
 ```bash
 ollama pull llama3.1:8b
 ollama serve
 ```
+Если `LLM_PROVIDER=openai`, этот шаг можно пропустить.
 
 Терминал 2 (Backend):
 ```bash
@@ -36,13 +46,13 @@ npm install
 npm run dev
 ```
 
-## 4) Проверка
+## 5) Проверка
 
 - Backend health: `http://localhost:8000/health`
 - Swagger: `http://localhost:8000/docs`
 - Frontend: `http://localhost:5173`
 
-## 5) Быстрый тест без UI
+## 6) Быстрый тест без UI
 
 ```bash
 source .venv/bin/activate

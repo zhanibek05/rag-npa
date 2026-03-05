@@ -29,6 +29,8 @@ python src/build_index.py
 
 ## Запуск
 
+Настройки читаются автоматически из файла `.env` (без `export`).
+
 1. Запустить Ollama:
 
 ```bash
@@ -55,13 +57,21 @@ python src/answer.py "Как финансируются образователь
 
 ## Переменные окружения
 
-Поддерживаются (необязательно):
+Основные переменные в `.env`:
 - `INDEX_PATH` (default `./data/faiss.index`)
 - `META_PATH` (default `./data/chunks_meta.jsonl`)
 - `EMBEDDING_MODEL` (default `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`)
 - `EMBEDDING_DEVICE` (default `cpu`)
+- `LLM_PROVIDER` (`ollama` или `openai`)
+- `LLM_MODEL` (общий override, опционально)
 - `OLLAMA_URL` (default `http://localhost:11434/api/generate`)
 - `OLLAMA_MODEL` (default `llama3.1:8b`)
+- `OPENAI_API_KEY` (нужен для OpenAI)
+- `OPENAI_MODEL` (default `gpt-4o-mini`)
+
+Переключение на OpenAI:
+- в `.env`: `LLM_PROVIDER=openai`
+- заполнить `OPENAI_API_KEY`
 
 ## API
 
