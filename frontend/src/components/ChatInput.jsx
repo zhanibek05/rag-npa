@@ -1,4 +1,4 @@
-function ChatInput({query,setQuery,onSubmit,loading}){
+function ChatInput({query,setQuery,onSubmit,loading,mode}){
 
 return(
 
@@ -9,7 +9,7 @@ return(
 <input
 value={query}
 onChange={(e)=>setQuery(e.target.value)}
-placeholder="Задайте вопрос..."
+placeholder={mode==="search" ? "Введите запрос для поиска..." : "Задайте вопрос..."}
 />
 
 <button disabled={loading}>

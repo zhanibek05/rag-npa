@@ -15,6 +15,7 @@ const [messages,setMessages]=useState([])
 const [query,setQuery]=useState("")
 const [loading,setLoading]=useState(false)
 const [history,setHistory]=useState([])
+const [mode,setMode]=useState("answer")
 
 const sendMessage=async(e)=>{
 
@@ -34,14 +35,32 @@ setLoading(true)
 
 try{
 
+let aiMsg
+
+if(mode==="search"){
+
+const res=await axios.post(`${API}/search`,{
+query:query
+})
+
+aiMsg={
+role:"assistant",
+text:`Найдено результатов: ${res.data.length}`,
+sources:res.data
+}
+
+}else{
+
 const res=await axios.post(`${API}/answer`,{
 query:query
 })
 
-const aiMsg={
+aiMsg={
 role:"assistant",
 text:res.data.answer,
 sources:res.data.sources
+}
+
 }
 
 setMessages(prev=>[...prev,aiMsg])
@@ -61,7 +80,7 @@ return(
 
 <div className="app">
 
-<Sidebar history={history}/>
+<Sidebar history={history} mode={mode} setMode={setMode}/>
 
 <div className="chat-area">
 
@@ -82,6 +101,7 @@ query={query}
 setQuery={setQuery}
 onSubmit={sendMessage}
 loading={loading}
+mode={mode}
 />
 
 </div>
