@@ -19,6 +19,18 @@ function ChatMessage({ message }) {
 
               <div key={i} className="source">
 
+                {s.title && (
+                  <div className="source-title">
+                    {s.title}
+                  </div>
+                )}
+
+                {typeof s.score === "number" && (
+                  <div className="source-score">
+                    score: {s.score.toFixed(3)}
+                  </div>
+                )}
+
                 {s.text.slice(0,120)}...
 
                 {s.source_url && (

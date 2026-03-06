@@ -30,6 +30,28 @@ body {
   margin-bottom: 20px;
 }
 
+.mode-switch {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 18px;
+}
+
+.mode-btn {
+  flex: 1;
+  padding: 9px 10px;
+  border: 1px solid #2a2a33;
+  border-radius: 8px;
+  background: #17171d;
+  color: #d1d5db;
+  cursor: pointer;
+}
+
+.mode-btn.active {
+  background: #2563eb;
+  border-color: #2563eb;
+  color: #fff;
+}
+
 .history-item {
   padding: 10px;
   border-radius: 8px;
@@ -137,6 +159,16 @@ body {
   border-radius: 6px;
   background: #14141a;
   margin-top: 6px;
+}
+
+.source-title {
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.source-score {
+  opacity: 0.75;
+  margin-bottom: 6px;
 }
 
 /* code */
