@@ -14,6 +14,7 @@ pip install -r requirements.txt
 ```bash
 psql -U postgres -c "CREATE DATABASE rag_npa;"
 ```
+Если `LLM_PROVIDER=openai`, этот шаг можно пропустить.
 
 Скопируйте `.env` и заполните:
 ```bash
