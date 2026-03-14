@@ -1,15 +1,29 @@
 import ReactMarkdown from "react-markdown";
 
-function ChatMessage({ message }) {
+function ThinkingDots() {
+  return (
+    <div className="thinking">
+      <span className="thinking-dot" />
+      <span className="thinking-dot" />
+      <span className="thinking-dot" />
+    </div>
+  )
+}
+
+function ChatMessage({ message, thinking }) {
 
   return (
     <div className={`message ${message.role}`}>
 
       <div className="bubble">
 
-        <ReactMarkdown>
-          {message.text}
-        </ReactMarkdown>
+        {thinking ? (
+          <ThinkingDots />
+        ) : (
+          <ReactMarkdown>
+            {message.text}
+          </ReactMarkdown>
+        )}
 
         {message.sources && (
 

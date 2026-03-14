@@ -8,7 +8,28 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-## 2) Подготовка индекса (один раз или после смены источника)
+## 2) Настройка PostgreSQL
+
+Создайте базу данных:
+```bash
+psql -U postgres -c "CREATE DATABASE rag_npa;"
+```
+
+Скопируйте `.env` и заполните:
+```bash
+cp example.env .env
+```
+
+Ключевые переменные:
+```
+DATABASE_URL=postgresql+asyncpg://postgres:postgres@localhost:5432/rag_npa
+SECRET_KEY=your-long-random-secret-key
+ACCESS_TOKEN_EXPIRE_MINUTES=60
+```
+
+Таблицы `users`, `chat_sessions`, `chat_messages` создаются **автоматически** при первом запуске бэкенда.
+
+## 3) Подготовка индекса (один раз или после смены источника)
 
 ```bash
 python src/build_corpus.py

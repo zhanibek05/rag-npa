@@ -5,14 +5,23 @@ beautifulsoup4
 lxml
 tqdm
 sentence-transformers
-faiss-cpu
-numpy
+faiss-cpu==1.8.0
+numpy==1.26.4
 click
 
-# Llama runner (pick one later)
-llama-cpp-python
 
 # FastAPI Backend
 fastapi
 uvicorn[standard]
 python-multipart
+
+# Database
+sqlalchemy[asyncio]
+asyncpg
+alembic
+
+# Auth
+python-jose[cryptography]
+passlib[bcrypt]
+bcrypt==4.0.1
+email-validator
