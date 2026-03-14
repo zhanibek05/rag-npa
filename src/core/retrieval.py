@@ -4,7 +4,7 @@ from typing import Dict, List, Tuple
 import faiss
 from sentence_transformers import SentenceTransformer
 
-from .config import EMBEDDING_DEVICE, EMBEDDING_MODEL, INDEX_PATH, META_PATH
+from .config import EMBEDDING_DEVICE, EMBEDDING_MODEL, INDEX_PATH, META_PATH, RETRIEVAL_MODE
 from .io import load_meta
 
 
@@ -87,6 +87,7 @@ class RetrievalEngine:
         self.meta_path = meta_path
         self.embedding_model = embedding_model
         self.device = device
+        self.retrieval_mode = RETRIEVAL_MODE
 
         self.index = None
         self.meta: List[Dict] = []
@@ -98,12 +99,19 @@ class RetrievalEngine:
         if not os.path.exists(self.meta_path):
             raise RuntimeError("Meta not found. Rebuild index metadata first.")
 
-        self.index = faiss.read_index(self.index_path)
         self.meta = load_meta(self.meta_path)
-        self.model = SentenceTransformer(self.embedding_model, device=self.device)
+
+        if self.retrieval_mode == "semantic":
+            self.index = faiss.read_index(self.index_path)
+            self.model = SentenceTransformer(self.embedding_model, device=self.device)
+        else:
+            self.index = None
+            self.model = None
 
     def is_ready(self) -> bool:
-        return self.index is not None and self.model is not None and len(self.meta) > 0
+        if self.retrieval_mode == "semantic":
+            return self.index is not None and self.model is not None and len(self.meta) > 0
+        return len(self.meta) > 0
 
     def search(self, query: str, top_k: int = 5) -> List[Dict]:
         hits, _ = self.search_with_scores(query=query, top_k=top_k)
@@ -112,6 +120,9 @@ class RetrievalEngine:
     def search_with_scores(self, query: str, top_k: int = 5) -> Tuple[List[Dict], List[float]]:
         if not self.is_ready():
             raise RuntimeError("Retrieval engine is not loaded")
+
+        if self.retrieval_mode != "semantic":
+            return self._lexical_search(query=query, top_k=top_k)
 
         # Берем больше кандидатов из FAISS и потом переранжируем
         candidate_k = max(top_k * 10, 50)
@@ -142,3 +153,26 @@ class RetrievalEngine:
             hit_scores.append(float(s))
 
         return hits, hit_scores
+
+    def _lexical_search(self, query: str, top_k: int = 5) -> Tuple[List[Dict], List[float]]:
+        query_tokens = set(_normalize_tokens(query))
+        scored: List[Tuple[float, Dict]] = []
+
+        for item in self.meta:
+            text = item.get("text", "")
+            text_tokens = set(_normalize_tokens(text))
+            overlap = len(query_tokens & text_tokens)
+            # overlap дает базовый rank, lexical_boost усиливает определения и точные совпадения
+            score = float(overlap) + _lexical_boost(query, text)
+            if score > 0:
+                scored.append((score, item))
+
+        scored.sort(key=lambda x: x[0], reverse=True)
+        top = scored[:top_k]
+
+        if not top:
+            # Если нет пересечений, возвращаем первые top_k фрагментов с нулевыми score.
+            fallback = self.meta[:top_k]
+            return fallback, [0.0 for _ in fallback]
+
+        return [item for _, item in top], [float(score) for score, _ in top]

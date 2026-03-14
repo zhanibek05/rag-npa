@@ -13,8 +13,12 @@ try:
         LLM_PROVIDER,
         META_PATH,
     )
+    from src.core.database import engine
+    from src.core.models import Base
     from src.core.retrieval import RetrievalEngine
     from src.core.service import RAGService
+    from src.routers.auth import router as auth_router
+    from src.routers.chat import router as chat_router
 except ModuleNotFoundError as exc:
     if not exc.name.startswith("src"):
         raise
@@ -26,10 +30,17 @@ except ModuleNotFoundError as exc:
         LLM_PROVIDER,
         META_PATH,
     )
+    from core.database import engine
+    from core.models import Base
     from core.retrieval import RetrievalEngine
     from core.service import RAGService
+    from routers.auth import router as auth_router
+    from routers.chat import router as chat_router
 
 app = FastAPI(title="RAG NPA API")
+
+app.include_router(auth_router)
+app.include_router(chat_router)
 
 # CORS для фронтенда
 app.add_middleware(
@@ -71,6 +82,11 @@ class AnswerResponse(BaseModel):
 @app.on_event("startup")
 async def load_models():
     global retrieval_engine, rag_service
+
+    # Create database tables
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    print("✓ Database tables ready")
 
     retrieval_engine = RetrievalEngine(
         index_path=INDEX_PATH,
