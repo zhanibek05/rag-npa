@@ -8,10 +8,10 @@ try:
     from src.core.config import (
         EMBEDDING_DEVICE,
         EMBEDDING_MODEL,
-        INDEX_PATH,
         LLM_MODEL,
         LLM_PROVIDER,
-        META_PATH,
+        QDRANT_COLLECTION,
+        QDRANT_URL,
     )
     from src.core.database import engine
     from src.core.models import Base
@@ -25,10 +25,10 @@ except ModuleNotFoundError as exc:
     from core.config import (
         EMBEDDING_DEVICE,
         EMBEDDING_MODEL,
-        INDEX_PATH,
         LLM_MODEL,
         LLM_PROVIDER,
-        META_PATH,
+        QDRANT_COLLECTION,
+        QDRANT_URL,
     )
     from core.database import engine
     from core.models import Base
@@ -83,16 +83,15 @@ class AnswerResponse(BaseModel):
 async def load_models():
     global retrieval_engine, rag_service
 
-    # Create database tables
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
     print("✓ Database tables ready")
 
     retrieval_engine = RetrievalEngine(
-        index_path=INDEX_PATH,
-        meta_path=META_PATH,
         embedding_model=EMBEDDING_MODEL,
         device=EMBEDDING_DEVICE,
+        qdrant_url=QDRANT_URL,
+        collection_name=QDRANT_COLLECTION,
     )
     retrieval_engine.load()
     rag_service = RAGService(
@@ -101,15 +100,20 @@ async def load_models():
         llm_provider=LLM_PROVIDER,
     )
 
-    print(f"✓ Loaded index with {len(retrieval_engine.meta)} chunks")
+    collection_info = retrieval_engine.client.get_collection(QDRANT_COLLECTION)
+    print(f"✓ Loaded Qdrant collection '{QDRANT_COLLECTION}' with {collection_info.points_count} chunks")
 
 
 @app.get("/health")
 async def health():
-    chunks_count = len(retrieval_engine.meta) if retrieval_engine else 0
+    ready = retrieval_engine.is_ready() if retrieval_engine else False
+    chunks_count = 0
+    if ready:
+        info = retrieval_engine.client.get_collection(retrieval_engine.collection_name)
+        chunks_count = info.points_count
     return {
         "status": "ok",
-        "index_loaded": retrieval_engine.is_ready() if retrieval_engine else False,
+        "index_loaded": ready,
         "chunks_count": chunks_count,
     }
 

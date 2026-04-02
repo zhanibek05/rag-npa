@@ -1,9 +1,9 @@
 import argparse
-import json
-import os
 
-import faiss
+from qdrant_client import QdrantClient
+from qdrant_client.models import Distance, PointStruct, VectorParams
 from sentence_transformers import SentenceTransformer
+from core.config import QDRANT_URL, QDRANT_COLLECTION, EMBEDDING_MODEL
 
 try:
     from src.core.io import load_jsonl
@@ -16,9 +16,10 @@ except ModuleNotFoundError as exc:
 def main():
     parser = argparse.ArgumentParser()
     parser.add_argument("--chunks", default="./data/act_chunks.jsonl")
-    parser.add_argument("--out-dir", default="./data")
-    parser.add_argument("--model", default="sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2")
+    parser.add_argument("--model", default=EMBEDDING_MODEL)
     parser.add_argument("--batch-size", type=int, default=32)
+    parser.add_argument("--qdrant-url", default=QDRANT_URL)
+    parser.add_argument("--collection", default=QDRANT_COLLECTION)
     args = parser.parse_args()
 
     chunks = load_jsonl(args.chunks)
@@ -34,30 +35,40 @@ def main():
     )
 
     dim = embeddings.shape[1]
-    index = faiss.IndexFlatIP(dim)
-    index.add(embeddings)
+    client = QdrantClient(url=args.qdrant_url)
 
-    os.makedirs(args.out_dir, exist_ok=True)
-    faiss.write_index(index, os.path.join(args.out_dir, "faiss.index"))
+    if client.collection_exists(collection_name=args.collection):
+        client.delete_collection(collection_name=args.collection)
+    client.create_collection(
+        collection_name=args.collection,
+        vectors_config=VectorParams(size=dim, distance=Distance.COSINE),
+    )
 
-    # Save metadata aligned with embeddings
-    meta_path = os.path.join(args.out_dir, "chunks_meta.jsonl")
-    with open(meta_path, "w", encoding="utf-8") as f:
-        for c in chunks:
-            item = {
-                "id": c["id"],
-                "text": c["text"],
-                "source_url": c.get("source_url"),
-                "title": c.get("title"),
-                "chunk_index": c.get("chunk_index"),
-                "char_start": c.get("char_start"),
-                "char_end": c.get("char_end"),
-                "paragraph_start": c.get("paragraph_start"),
-                "paragraph_end": c.get("paragraph_end"),
-            }
-            f.write(json.dumps(item, ensure_ascii=False) + "\n")
+    batch_size = args.batch_size
+    for start in range(0, len(chunks), batch_size):
+        batch_chunks = chunks[start : start + batch_size]
+        batch_embeddings = embeddings[start : start + batch_size]
+        points = [
+            PointStruct(
+                id=start + i,
+                vector=batch_embeddings[i].tolist(),
+                payload={
+                    "id": batch_chunks[i]["id"],
+                    "text": batch_chunks[i]["text"],
+                    "source_url": batch_chunks[i].get("source_url"),
+                    "title": batch_chunks[i].get("title"),
+                    "chunk_index": batch_chunks[i].get("chunk_index"),
+                    "char_start": batch_chunks[i].get("char_start"),
+                    "char_end": batch_chunks[i].get("char_end"),
+                    "paragraph_start": batch_chunks[i].get("paragraph_start"),
+                    "paragraph_end": batch_chunks[i].get("paragraph_end"),
+                },
+            )
+            for i, _ in enumerate(batch_chunks)
+        ]
+        client.upsert(collection_name=args.collection, points=points)
 
-    print(f"Saved index with {len(chunks)} chunks (dim={dim}).")
+    print(f"Saved {len(chunks)} chunks to Qdrant collection '{args.collection}' (dim={dim}).")
 
 
 if __name__ == "__main__":
