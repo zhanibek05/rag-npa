@@ -1,11 +1,30 @@
 import uuid
 from datetime import datetime
 
-from sqlalchemy import Boolean, Column, DateTime, ForeignKey, JSON, String, Text
+from sqlalchemy import Boolean, Column, Date, DateTime, ForeignKey, JSON, String, Text
 from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import relationship
 
 from .database import Base
+
+
+class Document(Base):
+    __tablename__ = "documents"
+
+    id = Column(String(50), primary_key=True)  # e.g. Z2400000079
+    url = Column(String(500), nullable=False, unique=True)
+    title = Column(Text, nullable=True)
+    doc_type = Column(String(100), nullable=True)   # Закон, Постановление, Приказ...
+    status = Column(String(50), nullable=True)       # Действующий / Прекративший действие
+    adopted_date = Column(Date, nullable=True)
+    issuing_body = Column(Text, nullable=True)
+    sub_sphere = Column(Text, nullable=True)
+    raw_text = Column(Text, nullable=True)
+    scraped_at = Column(DateTime, nullable=True)
+    index_status = Column(String(20), nullable=False, default="pending")
+    # pending | scraped | indexed | failed
+    source = Column(String(20), nullable=False, default="adilet")
+    # adilet | custom
 
 
 class User(Base):

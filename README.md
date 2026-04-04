@@ -1,11 +1,6 @@
-# RAG NPA Backend
+# RAG NPA
 
-Backend для поиска и ответов по НПА (RAG):
-- извлечение текста НПА,
-- чанкинг,
-- индексация в FAISS,
-- semantic search,
-- генерация ответа через Ollama.
+Q&A ассистент по НПА Казахстана (сфера: образование). Стек: FastAPI + PostgreSQL + Qdrant + Ollama/OpenAI.
 
 ## Быстрый старт
 
@@ -13,100 +8,73 @@ Backend для поиска и ответов по НПА (RAG):
 python -m venv .venv
 source .venv/bin/activate
 pip install -r requirements.txt
+cp .env.example .env   # заполнить переменные
 ```
 
 ## Подготовка данных
 
 ```bash
-python src/build_corpus.py
-python src/build_index.py
+# 1. Собрать список документов из adilet.zan.kz
+python -m src.scrape_urls
+
+# 2. Скачать полный текст документов
+python -m src.scrape_docs
+
+# 3. Разбить на чанки и загрузить в Qdrant
+python -m src.build_index
 ```
 
-Результат в `data/`:
-- `act_chunks.jsonl`
-- `chunks_meta.jsonl`
-- `faiss.index`
+Поддерживается ручная загрузка DOCX/PDF/TXT через `POST /documents/upload`.
 
 ## Запуск
 
-Настройки читаются автоматически из файла `.env` (без `export`).
-
-1. Запустить Ollama:
-
 ```bash
-ollama pull llama3.1:8b
-ollama serve
-```
+# Запустить Qdrant (Docker)
+docker run -p 6333:6333 qdrant/qdrant
 
-2. Запустить backend:
+# Применить миграции БД
+alembic upgrade head
 
-```bash
-source .venv/bin/activate
-python src/api.py
+# Запустить backend
+uvicorn src.api:app --reload
+
+# Запустить frontend
+cd frontend && npm install && npm run dev
 ```
 
 API: `http://localhost:8000`  
 Swagger: `http://localhost:8000/docs`
 
-## CLI (для проверки retrieval/RAG)
-
-```bash
-python src/search.py "финансирование образовательных организаций" --top-k 5
-python src/answer.py "Как финансируются образовательные организации?" --top-k 10 --max-context-chars 7000 --device cpu
-```
-
 ## Переменные окружения
 
-Основные переменные в `.env`:
-- `INDEX_PATH` (default `./data/faiss.index`)
-- `META_PATH` (default `./data/chunks_meta.jsonl`)
-- `EMBEDDING_MODEL` (default `sentence-transformers/paraphrase-multilingual-MiniLM-L12-v2`)
-- `EMBEDDING_DEVICE` (default `cpu`)
-- `LLM_PROVIDER` (`ollama` или `openai`)
-- `LLM_MODEL` (общий override, опционально)
-- `OLLAMA_URL` (default `http://localhost:11434/api/generate`)
-- `OLLAMA_MODEL` (default `llama3.1:8b`)
-- `OPENAI_API_KEY` (нужен для OpenAI)
-- `OPENAI_MODEL` (default `gpt-4o-mini`)
+| Переменная | Default | Описание |
+|---|---|---|
+| `DATABASE_URL` | — | PostgreSQL DSN |
+| `QDRANT_URL` | `http://localhost:6333` | Qdrant endpoint |
+| `QDRANT_COLLECTION` | `npa_chunks` | Название коллекции |
+| `EMBEDDING_MODEL` | `paraphrase-multilingual-MiniLM-L12-v2` | SentenceTransformer |
+| `EMBEDDING_DEVICE` | `cpu` | `cpu` или `cuda` |
+| `LLM_PROVIDER` | `ollama` | `ollama` или `openai` |
+| `OLLAMA_URL` | `http://localhost:11434/api/generate` | |
+| `OLLAMA_MODEL` | `llama3.1:8b` | |
+| `OPENAI_API_KEY` | — | Нужен при `LLM_PROVIDER=openai` |
+| `OPENAI_MODEL` | `gpt-4o-mini` | |
+| `SECRET_KEY` | — | JWT секрет |
 
-Переключение на OpenAI:
-- в `.env`: `LLM_PROVIDER=openai`
-- заполнить `OPENAI_API_KEY`
+## Структура `src`
 
-## API
-
-### `GET /health`
-Статус сервиса и загрузки индекса.
-
-### `POST /search`
-```json
-{
-  "query": "Ваш запрос",
-  "top_k": 5
-}
 ```
-
-### `POST /answer`
-```json
-{
-  "query": "Ваш вопрос",
-  "top_k": 10,
-  "max_context_chars": 7000
-}
-```
-
-## Актуальная структура `src`
-
-```text
 src/
-  api.py
-  answer.py
-  search.py
-  build_corpus.py
-  build_index.py
+  api.py              — FastAPI приложение
+  build_index.py      — чанкинг + индексация в Qdrant
+  scrape_urls.py      — сбор URL документов с adilet.zan.kz
+  scrape_docs.py      — скачивание полного текста документов
+  routers/
+    documents.py      — CRUD документов + загрузка файлов
   core/
     config.py
-    io.py
+    models.py         — SQLAlchemy модели (Document, User, ChatSession, ChatMessage)
+    database.py
     retrieval.py
     context.py
     llm.py

@@ -7,6 +7,7 @@ import Auth from "./components/Auth"
 import ChatMessage from "./components/ChatMessage"
 import ChatInput from "./components/ChatInput"
 import Sidebar from "./components/Sidebar"
+import Documents from "./components/Documents"
 
 import "./App.css"
 
@@ -187,6 +188,26 @@ function ChatView() {
   )
 }
 
+function DocumentsView() {
+  const { token } = useAuth()
+  const [sessions] = useState([])
+  const navigate = useNavigate()
+  return (
+    <div className="app">
+      <Sidebar
+        sessions={sessions}
+        onSelectSession={(id) => navigate(`/c/${id}`)}
+        onNewChat={() => navigate("/")}
+        onDeleteSession={() => {}}
+        currentSessionId={null}
+      />
+      <div className="chat-area">
+        <Documents token={token} />
+      </div>
+    </div>
+  )
+}
+
 function App() {
   const { user, loading: authLoading } = useAuth()
 
@@ -197,6 +218,7 @@ function App() {
     <Routes>
       <Route path="/" element={<ChatView />} />
       <Route path="/c/:sessionId" element={<ChatView />} />
+      <Route path="/documents" element={<DocumentsView />} />
     </Routes>
   )
 }

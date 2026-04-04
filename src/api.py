@@ -19,6 +19,7 @@ try:
     from src.core.service import RAGService
     from src.routers.auth import router as auth_router
     from src.routers.chat import router as chat_router
+    from src.routers.documents import router as documents_router
 except ModuleNotFoundError as exc:
     if not exc.name.startswith("src"):
         raise
@@ -36,11 +37,13 @@ except ModuleNotFoundError as exc:
     from core.service import RAGService
     from routers.auth import router as auth_router
     from routers.chat import router as chat_router
+    from routers.documents import router as documents_router
 
 app = FastAPI(title="RAG NPA API")
 
 app.include_router(auth_router)
 app.include_router(chat_router)
+app.include_router(documents_router)
 
 # CORS для фронтенда
 app.add_middleware(
@@ -126,7 +129,7 @@ def _ensure_ready() -> RAGService:
 
 def _to_search_result(item: dict, score: float) -> SearchResult:
     return SearchResult(
-        id=item["id"],
+        id=item.get("doc_id") or item.get("id", ""),
         text=item["text"],
         score=float(score),
         source_url=item.get("source_url"),

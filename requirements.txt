@@ -1,5 +1,7 @@
 requests
 python-dotenv
+python-docx
+pypdf
 openai
 beautifulsoup4
 lxml
@@ -18,6 +20,7 @@ python-multipart
 # Database
 sqlalchemy[asyncio]
 asyncpg
+psycopg2-binary
 alembic
 
 # Auth
