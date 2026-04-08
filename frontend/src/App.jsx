@@ -9,6 +9,7 @@ import ChatInput from "./components/ChatInput"
 import Sidebar from "./components/Sidebar"
 import VerifyEmail from "./components/VerifyEmail"
 import AdminPanel from "./components/AdminPanel"
+import Documents from "./components/Documents"
 
 import "./App.css"
 
@@ -184,6 +185,26 @@ function ChatView() {
           mode={mode}
           setMode={setMode}
         />
+      </div>
+    </div>
+  )
+}
+
+function DocumentsView() {
+  const { token } = useAuth()
+  const [sessions] = useState([])
+  const navigate = useNavigate()
+  return (
+    <div className="app">
+      <Sidebar
+        sessions={sessions}
+        onSelectSession={(id) => navigate(`/c/${id}`)}
+        onNewChat={() => navigate("/")}
+        onDeleteSession={() => {}}
+        currentSessionId={null}
+      />
+      <div className="chat-area">
+        <Documents token={token} />
       </div>
     </div>
   )
