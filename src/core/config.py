@@ -1,6 +1,8 @@
 import os
 import platform
 
+from pathlib import Path
+
 try:
     from dotenv import load_dotenv
 except ModuleNotFoundError:
@@ -25,6 +27,7 @@ OLLAMA_URL = os.getenv("OLLAMA_URL", "http://localhost:11434/api/generate")
 OLLAMA_MODEL = os.getenv("OLLAMA_MODEL", "llama3.1:8b")
 LLM_PROVIDER = os.getenv("LLM_PROVIDER", "ollama").strip().lower()
 OPENAI_API_KEY = os.getenv("OPENAI_API_KEY", os.getenv("OPENAI_KEY", ""))
+OPENAI_BASE_URL = os.getenv("OPENAI_BASE_URL", "")
 OPENAI_MODEL = os.getenv("OPENAI_MODEL", "gpt-4o-mini")
 LLM_MODEL = os.getenv(
     "LLM_MODEL",
@@ -32,10 +35,15 @@ LLM_MODEL = os.getenv(
 )
 
 # Database
-DATABASE_URL = os.getenv(
-    "DATABASE_URL",
-    "postgresql+asyncpg://postgres:postgres@localhost:5432/rag_npa",
-)
+DATABASE_URL = os.getenv("DATABASE_URL")
+
+# SMTP
+SMTP_HOST = os.getenv("SMTP_HOST", "smtp.gmail.com")
+SMTP_PORT = int(os.getenv("SMTP_PORT", "587"))
+SMTP_USER = os.getenv("SMTP_USER", "")
+SMTP_PASSWORD = os.getenv("SMTP_PASSWORD", "")
+SMTP_FROM = os.getenv("SMTP_FROM", SMTP_USER)
+FRONTEND_URL = os.getenv("FRONTEND_URL", "http://localhost:5173")
 
 # JWT Auth
 SECRET_KEY = os.getenv("SECRET_KEY", "change-me-in-production-use-a-long-random-string")

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react"
-import { Routes, Route, useNavigate, useParams } from "react-router-dom"
+import { Routes, Route, useNavigate, useParams, Navigate } from "react-router-dom"
 import axios from "axios"
 
 import { useAuth } from "./context/AuthContext"
@@ -7,6 +7,8 @@ import Auth from "./components/Auth"
 import ChatMessage from "./components/ChatMessage"
 import ChatInput from "./components/ChatInput"
 import Sidebar from "./components/Sidebar"
+import VerifyEmail from "./components/VerifyEmail"
+import AdminPanel from "./components/AdminPanel"
 
 import "./App.css"
 
@@ -191,12 +193,23 @@ function App() {
   const { user, loading: authLoading } = useAuth()
 
   if (authLoading) return <div className="loading-screen">Загрузка...</div>
-  if (!user) return <Auth />
 
   return (
     <Routes>
-      <Route path="/" element={<ChatView />} />
-      <Route path="/c/:sessionId" element={<ChatView />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
+      {!user ? (
+        <Route path="*" element={<Auth />} />
+      ) : (
+        <>
+          <Route path="/" element={<ChatView />} />
+          <Route path="/c/:sessionId" element={<ChatView />} />
+          <Route
+            path="/admin"
+            element={user.role === "admin" ? <AdminPanel /> : <Navigate to="/" />}
+          />
+          <Route path="*" element={<Navigate to="/" />} />
+        </>
+      )}
     </Routes>
   )
 }

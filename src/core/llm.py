@@ -1,6 +1,6 @@
 import requests
 
-from .config import LLM_PROVIDER, OLLAMA_URL, OPENAI_API_KEY
+from .config import LLM_PROVIDER, OLLAMA_URL, OPENAI_API_KEY, OPENAI_BASE_URL
 
 
 def ollama_generate(
@@ -34,7 +34,7 @@ def openai_generate(
 
     from openai import OpenAI
 
-    client = OpenAI(api_key=api_key, timeout=timeout)
+    client = OpenAI(api_key=api_key, base_url=OPENAI_BASE_URL or None, timeout=timeout)
     response = client.chat.completions.create(
         model=model,
         messages=[{"role": "user", "content": prompt}],

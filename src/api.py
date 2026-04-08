@@ -19,6 +19,7 @@ try:
     from src.core.service import RAGService
     from src.routers.auth import router as auth_router
     from src.routers.chat import router as chat_router
+    from src.routers.admin import router as admin_router
 except ModuleNotFoundError as exc:
     if not exc.name.startswith("src"):
         raise
@@ -36,11 +37,13 @@ except ModuleNotFoundError as exc:
     from core.service import RAGService
     from routers.auth import router as auth_router
     from routers.chat import router as chat_router
+    from routers.admin import router as admin_router
 
 app = FastAPI(title="RAG NPA API")
 
 app.include_router(auth_router)
 app.include_router(chat_router)
+app.include_router(admin_router)
 
 # CORS для фронтенда
 app.add_middleware(
