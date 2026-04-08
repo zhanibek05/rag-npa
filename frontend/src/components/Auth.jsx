@@ -6,6 +6,7 @@ function Auth() {
   const [tab, setTab] = useState("login")
   const [form, setForm] = useState({ username: "", email: "", password: "" })
   const [error, setError] = useState("")
+  const [success, setSuccess] = useState("")
   const [loading, setLoading] = useState(false)
 
   const handle = (e) => setForm({ ...form, [e.target.name]: e.target.value })
@@ -13,13 +14,16 @@ function Auth() {
   const submit = async (e) => {
     e.preventDefault()
     setError("")
+    setSuccess("")
     setLoading(true)
     try {
       if (tab === "login") {
         await login(form.username, form.password)
       } else {
         await register(form.username, form.email, form.password)
-        await login(form.username, form.password)
+        setSuccess("Registration successful! Please check your email to verify your account.")
+        setTab("login")
+        setForm({ username: "", email: "", password: "" })
       }
     } catch (err) {
       setError(err.response?.data?.detail || "Ошибка авторизации")
@@ -74,6 +78,7 @@ function Auth() {
             required
           />
           {error && <div className="auth-error">{error}</div>}
+          {success && <div className="auth-success">{success}</div>}
           <button type="submit" disabled={loading}>
             {loading ? "..." : tab === "login" ? "Войти" : "Зарегистрироваться"}
           </button>
