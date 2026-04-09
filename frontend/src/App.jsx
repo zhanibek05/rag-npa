@@ -7,89 +7,70 @@ import Sidebar from "./components/Sidebar"
 
 import "./App.css"
 
-const API="http://localhost:8000"
+const API = "http://localhost:8000"
 
-function App(){
+function App() {
+  const [messages, setMessages] = useState([])
+  const [query, setQuery] = useState("")
+  const [loading, setLoading] = useState(false)
+  const [history, setHistory] = useState([])
 
-const [messages,setMessages]=useState([])
-const [query,setQuery]=useState("")
-const [loading,setLoading]=useState(false)
-const [history,setHistory]=useState([])
+  const sendSuggestion = (text) => {
+    sendMessage(null, text)
+  }
 
-const sendMessage=async(e)=>{
+  const sendMessage = async (e, suggestedQuery) => {
+    e?.preventDefault()
+    const text = suggestedQuery ?? query
+    if (!text.trim()) return
 
-e.preventDefault()
+    const userMsg = { role: "user", text }
+    setMessages(prev => [...prev, userMsg])
+    setHistory(prev => [text, ...prev])
+    setLoading(true)
 
-if(!query.trim())return
+    try {
+      const res = await axios.post(`${API}/answer`, { query: text })
+      const aiMsg = {
+        role: "assistant",
+        text: res.data.answer,
+        sources: res.data.sources,
+        suggestions: res.data.suggestions || [],
+      }
+      setMessages(prev => [...prev, aiMsg])
+    } catch (err) {
+      console.error(err)
+    }
 
-const userMsg={
-role:"user",
-text:query
-}
+    setLoading(false)
+    setQuery("")
+  }
 
-setMessages(prev=>[...prev,userMsg])
-setHistory(prev=>[query,...prev])
-
-setLoading(true)
-
-try{
-
-const res=await axios.post(`${API}/answer`,{
-query:query
-})
-
-const aiMsg={
-role:"assistant",
-text:res.data.answer,
-sources:res.data.sources
-}
-
-setMessages(prev=>[...prev,aiMsg])
-
-}catch(err){
-
-console.error(err)
-
-}
-
-setLoading(false)
-setQuery("")
-
-}
-
-return(
-
-<div className="app">
-
-<Sidebar history={history}/>
-
-<div className="chat-area">
-
-<div className="messages">
-
-{messages.map((m,i)=>(
-<ChatMessage key={i} message={m}/>
-))}
-
-{loading && (
-<ChatMessage message={{role:"assistant",text:"AI думает..."}}/>
-)}
-
-</div>
-
-<ChatInput
-query={query}
-setQuery={setQuery}
-onSubmit={sendMessage}
-loading={loading}
-/>
-
-</div>
-
-</div>
-
-)
-
+  return (
+    <div className="app">
+      <Sidebar history={history} />
+      <div className="chat-area">
+        <div className="messages">
+          {messages.map((m, i) => (
+            <ChatMessage
+              key={i}
+              message={m}
+              onSuggestionClick={!loading ? sendSuggestion : null}
+            />
+          ))}
+          {loading && (
+            <ChatMessage message={{ role: "assistant", text: "AI думает..." }} />
+          )}
+        </div>
+        <ChatInput
+          query={query}
+          setQuery={setQuery}
+          onSubmit={sendMessage}
+          loading={loading}
+        />
+      </div>
+    </div>
+  )
 }
 
 export default App

@@ -64,6 +64,7 @@ class SearchResult(BaseModel):
 class AnswerResponse(BaseModel):
     answer: str
     sources: List[SearchResult]
+    suggestions: List[str] = []
 
 
 @app.on_event("startup")
@@ -130,7 +131,13 @@ async def answer(req: AnswerRequest):
         raise HTTPException(status_code=503, detail=f"Ollama error: {str(e)}")
 
     sources = [_to_search_result(item, score) for item, score in zip(hits, scores)]
-    return AnswerResponse(answer=answer_text, sources=sources)
+
+    try:
+        suggestions = service.suggest(query=req.query, answer=answer_text)
+    except Exception:
+        suggestions = []
+
+    return AnswerResponse(answer=answer_text, sources=sources, suggestions=suggestions)
 
 
 if __name__ == "__main__":
