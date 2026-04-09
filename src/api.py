@@ -8,26 +8,45 @@ try:
     from src.core.config import (
         EMBEDDING_DEVICE,
         EMBEDDING_MODEL,
-        INDEX_PATH,
-        META_PATH,
-        OLLAMA_MODEL,
+        LLM_MODEL,
+        LLM_PROVIDER,
+        QDRANT_COLLECTION,
+        QDRANT_URL,
     )
+    from src.core.database import engine
+    from src.core.models import Base
     from src.core.retrieval import RetrievalEngine
     from src.core.service import RAGService
+    from src.routers.auth import router as auth_router
+    from src.routers.chat import router as chat_router
+    from src.routers.admin import router as admin_router
+    from src.routers.documents import router as documents_router
 except ModuleNotFoundError as exc:
     if not exc.name.startswith("src"):
         raise
     from core.config import (
         EMBEDDING_DEVICE,
         EMBEDDING_MODEL,
-        INDEX_PATH,
-        META_PATH,
-        OLLAMA_MODEL,
+        LLM_MODEL,
+        LLM_PROVIDER,
+        QDRANT_COLLECTION,
+        QDRANT_URL,
     )
+    from core.database import engine
+    from core.models import Base
     from core.retrieval import RetrievalEngine
     from core.service import RAGService
+    from routers.auth import router as auth_router
+    from routers.chat import router as chat_router
+    from routers.admin import router as admin_router
+    from routers.documents import router as documents_router
 
 app = FastAPI(title="RAG NPA API")
+
+app.include_router(auth_router)
+app.include_router(chat_router)
+app.include_router(admin_router)
+app.include_router(documents_router)
 
 # CORS для фронтенда
 app.add_middleware(
@@ -71,24 +90,37 @@ class AnswerResponse(BaseModel):
 async def load_models():
     global retrieval_engine, rag_service
 
+    async with engine.begin() as conn:
+        await conn.run_sync(Base.metadata.create_all)
+    print("✓ Database tables ready")
+
     retrieval_engine = RetrievalEngine(
-        index_path=INDEX_PATH,
-        meta_path=META_PATH,
         embedding_model=EMBEDDING_MODEL,
         device=EMBEDDING_DEVICE,
+        qdrant_url=QDRANT_URL,
+        collection_name=QDRANT_COLLECTION,
     )
     retrieval_engine.load()
-    rag_service = RAGService(retrieval=retrieval_engine, ollama_model=OLLAMA_MODEL)
+    rag_service = RAGService(
+        retrieval=retrieval_engine,
+        llm_model=LLM_MODEL,
+        llm_provider=LLM_PROVIDER,
+    )
 
-    print(f"✓ Loaded index with {len(retrieval_engine.meta)} chunks")
+    collection_info = retrieval_engine.client.get_collection(QDRANT_COLLECTION)
+    print(f"✓ Loaded Qdrant collection '{QDRANT_COLLECTION}' with {collection_info.points_count} chunks")
 
 
 @app.get("/health")
 async def health():
-    chunks_count = len(retrieval_engine.meta) if retrieval_engine else 0
+    ready = retrieval_engine.is_ready() if retrieval_engine else False
+    chunks_count = 0
+    if ready:
+        info = retrieval_engine.client.get_collection(retrieval_engine.collection_name)
+        chunks_count = info.points_count
     return {
         "status": "ok",
-        "index_loaded": retrieval_engine.is_ready() if retrieval_engine else False,
+        "index_loaded": ready,
         "chunks_count": chunks_count,
     }
 
@@ -101,7 +133,7 @@ def _ensure_ready() -> RAGService:
 
 def _to_search_result(item: dict, score: float) -> SearchResult:
     return SearchResult(
-        id=item["id"],
+        id=item.get("doc_id") or item.get("id", ""),
         text=item["text"],
         score=float(score),
         source_url=item.get("source_url"),
@@ -119,7 +151,7 @@ async def search(req: SearchRequest):
 
 @app.post("/answer", response_model=AnswerResponse)
 async def answer(req: AnswerRequest):
-    """Генерация ответа через RAG + Ollama"""
+    """Генерация ответа через RAG + LLM provider"""
     service = _ensure_ready()
     try:
         answer_text, hits, scores = service.answer(
@@ -128,7 +160,7 @@ async def answer(req: AnswerRequest):
             max_context_chars=req.max_context_chars,
         )
     except Exception as e:
-        raise HTTPException(status_code=503, detail=f"Ollama error: {str(e)}")
+        raise HTTPException(status_code=503, detail=f"LLM error: {str(e)}")
 
     sources = [_to_search_result(item, score) for item, score in zip(hits, scores)]
 

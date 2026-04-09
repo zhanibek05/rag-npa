@@ -1,9 +1,15 @@
-import { useState } from "react"
+import { useState, useEffect, useRef } from "react"
+import { Routes, Route, useNavigate, useParams, Navigate } from "react-router-dom"
 import axios from "axios"
 
+import { useAuth } from "./context/AuthContext"
+import Auth from "./components/Auth"
 import ChatMessage from "./components/ChatMessage"
 import ChatInput from "./components/ChatInput"
 import Sidebar from "./components/Sidebar"
+import VerifyEmail from "./components/VerifyEmail"
+import AdminPanel from "./components/AdminPanel"
+import Documents from "./components/Documents"
 
 import "./App.css"
 

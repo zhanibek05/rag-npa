@@ -10,8 +10,3 @@ def load_jsonl(path: str) -> List[Dict[str, Any]]:
                 continue
             rows.append(json.loads(line))
     return rows
-
-
-def load_meta(path: str) -> List[Dict[str, Any]]:
-    return load_jsonl(path)
-

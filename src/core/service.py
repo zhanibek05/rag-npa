@@ -1,8 +1,8 @@
 from typing import Dict, List, Tuple
 
-from .config import OLLAMA_MODEL
+from .config import LLM_MODEL, LLM_PROVIDER
 from .context import build_context
-from .llm import ollama_generate
+from .llm import generate_text
 from .retrieval import RetrievalEngine
 
 
@@ -29,9 +29,15 @@ def build_suggestions_prompt(query: str, answer: str) -> str:
 
 
 class RAGService:
-    def __init__(self, retrieval: RetrievalEngine, ollama_model: str = OLLAMA_MODEL):
+    def __init__(
+        self,
+        retrieval: RetrievalEngine,
+        llm_model: str = LLM_MODEL,
+        llm_provider: str = LLM_PROVIDER,
+    ):
         self.retrieval = retrieval
-        self.ollama_model = ollama_model
+        self.llm_model = llm_model
+        self.llm_provider = llm_provider
 
     def search(self, query: str, top_k: int) -> List[Dict]:
         return self.retrieval.search(query=query, top_k=top_k)
@@ -43,7 +49,11 @@ class RAGService:
         hits, scores = self.search_with_scores(query=query, top_k=top_k)
         context = build_context(hits, max_chars=max_context_chars)
         prompt = build_prompt(query=query, context=context)
-        answer_text = ollama_generate(model=self.ollama_model, prompt=prompt)
+        answer_text = generate_text(
+            model=self.llm_model,
+            provider=self.llm_provider,
+            prompt=prompt,
+        )
         return answer_text, hits, scores
 
     def suggest(self, query: str, answer: str) -> List[str]:

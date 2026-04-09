@@ -1,42 +1,46 @@
-import os
 from typing import Dict, List, Tuple
 
-import faiss
+from qdrant_client import QdrantClient
 from sentence_transformers import SentenceTransformer
 
-from .config import EMBEDDING_DEVICE, EMBEDDING_MODEL, INDEX_PATH, META_PATH
-from .io import load_meta
+from .config import (
+    EMBEDDING_DEVICE,
+    EMBEDDING_MODEL,
+    QDRANT_COLLECTION,
+    QDRANT_URL,
+)
 
 
 class RetrievalEngine:
     def __init__(
         self,
-        index_path: str = INDEX_PATH,
-        meta_path: str = META_PATH,
         embedding_model: str = EMBEDDING_MODEL,
         device: str = EMBEDDING_DEVICE,
+        qdrant_url: str = QDRANT_URL,
+        collection_name: str = QDRANT_COLLECTION,
     ):
-        self.index_path = index_path
-        self.meta_path = meta_path
         self.embedding_model = embedding_model
         self.device = device
+        self.qdrant_url = qdrant_url
+        self.collection_name = collection_name
 
-        self.index = None
-        self.meta: List[Dict] = []
+        self.client: QdrantClient | None = None
         self.model = None
 
     def load(self) -> None:
-        if not os.path.exists(self.index_path):
-            raise RuntimeError("Index not found. Run build_index.py first.")
-        if not os.path.exists(self.meta_path):
-            raise RuntimeError("Meta not found. Rebuild index metadata first.")
+        self.client = QdrantClient(url=self.qdrant_url)
 
-        self.index = faiss.read_index(self.index_path)
-        self.meta = load_meta(self.meta_path)
+        if not self.client.collection_exists(collection_name=self.collection_name):
+            raise RuntimeError(
+                f"Collection '{self.collection_name}' not found. Run build_index.py first."
+            )
+
+        print(f"Loading embedding model '{self.embedding_model}' on {self.device}...")
         self.model = SentenceTransformer(self.embedding_model, device=self.device)
+        print(f"✓ Embedding model loaded")
 
     def is_ready(self) -> bool:
-        return self.index is not None and self.model is not None and len(self.meta) > 0
+        return self.client is not None and self.model is not None
 
     def search(self, query: str, top_k: int = 5) -> List[Dict]:
         hits, _ = self.search_with_scores(query=query, top_k=top_k)
@@ -51,15 +55,14 @@ class RetrievalEngine:
             normalize_embeddings=True,
             convert_to_numpy=True,
         )
-        scores, ids = self.index.search(q_emb, top_k)
 
-        hits: List[Dict] = []
-        hit_scores: List[float] = []
-        for idx, score in zip(ids[0], scores[0]):
-            if idx < 0 or idx >= len(self.meta):
-                continue
-            item = self.meta[idx]
-            hits.append(item)
-            hit_scores.append(float(score))
+        results = self.client.query_points(
+            collection_name=self.collection_name,
+            query=q_emb[0].tolist(),
+            limit=top_k,
+            with_payload=True,
+        )
 
-        return hits, hit_scores
+        hits = [point.payload for point in results.points]
+        scores = [float(point.score) for point in results.points]
+        return hits, scores
