@@ -17,6 +17,17 @@ def build_prompt(query: str, context: str) -> str:
     )
 
 
+def build_suggestions_prompt(query: str, answer: str) -> str:
+    return (
+        "На основе вопроса и ответа предложи ровно 3 коротких уточняющих вопроса, "
+        "которые пользователь мог бы задать дальше по теме НПА в сфере образования.\n"
+        "Выведи ТОЛЬКО 3 вопроса — каждый с новой строки, без нумерации и лишних символов.\n\n"
+        f"Вопрос: {query}\n"
+        f"Ответ: {answer[:400]}\n\n"
+        "Три следующих вопроса:"
+    )
+
+
 class RAGService:
     def __init__(
         self,
@@ -44,3 +55,13 @@ class RAGService:
             prompt=prompt,
         )
         return answer_text, hits, scores
+
+    def suggest(self, query: str, answer: str) -> List[str]:
+        prompt = build_suggestions_prompt(query=query, answer=answer)
+        raw = ollama_generate(model=self.ollama_model, prompt=prompt, temperature=0.7)
+        lines = [
+            line.strip().lstrip("-•*1234567890.). ")
+            for line in raw.strip().splitlines()
+            if line.strip()
+        ]
+        return lines[:3]
