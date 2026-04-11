@@ -1,7 +1,9 @@
+import json
 from typing import List, Optional
 
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel
 
 try:
@@ -107,8 +109,9 @@ async def load_models():
         llm_provider=LLM_PROVIDER,
     )
 
-    collection_info = retrieval_engine.client.get_collection(QDRANT_COLLECTION)
-    print(f"✓ Loaded Qdrant collection '{QDRANT_COLLECTION}' with {collection_info.points_count} chunks")
+    if retrieval_engine.is_ready():
+        collection_info = retrieval_engine.client.get_collection(QDRANT_COLLECTION)
+        print(f"✓ Loaded Qdrant collection '{QDRANT_COLLECTION}' with {collection_info.points_count} chunks")
 
 
 @app.get("/health")
@@ -170,6 +173,40 @@ async def answer(req: AnswerRequest):
         suggestions = []
 
     return AnswerResponse(answer=answer_text, sources=sources, suggestions=suggestions)
+
+
+@app.post("/answer/stream")
+async def answer_stream(req: AnswerRequest):
+    """Стриминг ответа через SSE"""
+    service = _ensure_ready()
+
+    def event_generator():
+        try:
+            for event in service.answer_stream(
+                query=req.query,
+                top_k=req.top_k,
+                max_context_chars=req.max_context_chars,
+            ):
+                if event["type"] == "sources":
+                    sources = [
+                        _to_search_result(item, score).model_dump()
+                        for item, score in zip(event["hits"], event["scores"])
+                    ]
+                    yield f"data: {json.dumps({'type': 'sources', 'sources': sources})}\n\n"
+                elif event["type"] == "token":
+                    yield f"data: {json.dumps({'type': 'token', 'text': event['text']})}\n\n"
+                elif event["type"] == "suggestions":
+                    yield f"data: {json.dumps({'type': 'suggestions', 'suggestions': event['suggestions']})}\n\n"
+                elif event["type"] == "done":
+                    yield f"data: {json.dumps({'type': 'done'})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type': 'error', 'message': str(e)})}\n\n"
+
+    return StreamingResponse(
+        event_generator(),
+        media_type="text/event-stream",
+        headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},
+    )
 
 
 if __name__ == "__main__":

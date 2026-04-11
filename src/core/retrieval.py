@@ -31,9 +31,8 @@ class RetrievalEngine:
         self.client = QdrantClient(url=self.qdrant_url)
 
         if not self.client.collection_exists(collection_name=self.collection_name):
-            raise RuntimeError(
-                f"Collection '{self.collection_name}' not found. Run build_index.py first."
-            )
+            print(f"⚠ Collection '{self.collection_name}' not found. Upload documents to create it.")
+            return
 
         print(f"Loading embedding model '{self.embedding_model}' on {self.device}...")
         self.model = SentenceTransformer(self.embedding_model, device=self.device)

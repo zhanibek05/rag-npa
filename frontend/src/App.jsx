@@ -1,6 +1,5 @@
 import { useState } from "react"
 import { Routes, Route, Navigate } from "react-router-dom"
-import axios from "axios"
 
 import { useAuth } from "./context/AuthContext"
 import Auth from "./components/Auth"
@@ -41,26 +40,63 @@ function App() {
     const text = suggestedQuery ?? query
     if (!text.trim()) return
 
-    const userMsg = { role: "user", text }
-    setMessages(prev => [...prev, userMsg])
+    setMessages(prev => [...prev, { role: "user", text }])
     setHistory(prev => [text, ...prev])
+    setQuery("")
     setLoading(true)
 
+    setMessages(prev => [...prev, { role: "assistant", text: "", sources: [], suggestions: [] }])
+
     try {
-      const res = await axios.post(`${API}/answer`, { query: text })
-      const aiMsg = {
-        role: "assistant",
-        text: res.data.answer,
-        sources: res.data.sources,
-        suggestions: res.data.suggestions || [],
+      const response = await fetch(`${API}/answer/stream`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ query: text }),
+      })
+
+      const reader = response.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ""
+
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+
+        buffer += decoder.decode(value, { stream: true })
+        const lines = buffer.split("\n")
+        buffer = lines.pop()
+
+        for (const line of lines) {
+          if (!line.startsWith("data: ")) continue
+          const data = JSON.parse(line.slice(6))
+
+          if (data.type === "sources") {
+            setMessages(prev => {
+              const updated = [...prev]
+              updated[updated.length - 1] = { ...updated[updated.length - 1], sources: data.sources }
+              return updated
+            })
+          } else if (data.type === "token") {
+            setMessages(prev => {
+              const updated = [...prev]
+              const last = updated[updated.length - 1]
+              updated[updated.length - 1] = { ...last, text: last.text + data.text }
+              return updated
+            })
+          } else if (data.type === "suggestions") {
+            setMessages(prev => {
+              const updated = [...prev]
+              updated[updated.length - 1] = { ...updated[updated.length - 1], suggestions: data.suggestions }
+              return updated
+            })
+          }
+        }
       }
-      setMessages(prev => [...prev, aiMsg])
     } catch (err) {
       console.error(err)
     }
 
     setLoading(false)
-    setQuery("")
   }
 
   return (
