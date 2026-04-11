@@ -13,7 +13,7 @@ function ChatMessage({ message, onSuggestionClick }) {
                 {s.text.slice(0, 120)}...
                 {s.source_url && (
                   <div>
-                    <a href={s.source_url} target="_blank">источник</a>
+                    <a href={s.source_url} target="_blank" rel="noreferrer">источник</a>
                   </div>
                 )}
               </div>

@@ -1,8 +1,12 @@
 import { useState } from "react"
+import { useNavigate, Navigate } from "react-router-dom"
 import { useAuth } from "../context/AuthContext"
 
 function Auth() {
-  const { login, register } = useAuth()
+  const { login, register, user } = useAuth()
+  const navigate = useNavigate()
+
+  if (user) return <Navigate to="/" replace />
   const [tab, setTab] = useState("login")
   const [form, setForm] = useState({ username: "", email: "", password: "" })
   const [error, setError] = useState("")
@@ -19,6 +23,7 @@ function Auth() {
     try {
       if (tab === "login") {
         await login(form.username, form.password)
+        navigate("/")
       } else {
         await register(form.username, form.email, form.password)
         setSuccess("Registration successful! Please check your email to verify your account.")

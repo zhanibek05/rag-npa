@@ -43,83 +43,84 @@ export default function AdminPanel() {
   }
 
   return (
-    <div style={{ display: "flex", height: "100vh" }}>
-      <div style={{ width: "200px", background: "#1e1e2e", padding: "24px", color: "#fff" }}>
-        <h3 style={{ marginBottom: "24px" }}>Admin Panel</h3>
-        <button
-          onClick={() => navigate("/")}
-          style={{ background: "none", border: "none", color: "#ccc", cursor: "pointer", padding: 0 }}
-        >
-          ← Back to Chat
+    <div className="admin-layout">
+      <div className="admin-sidebar">
+        <h3 className="admin-sidebar-title">Admin Panel</h3>
+        <button className="admin-back-btn" onClick={() => navigate("/")}>
+          ← Назад в чат
         </button>
       </div>
 
-      <div style={{ flex: 1, padding: "32px", overflowY: "auto" }}>
+      <div className="admin-content">
         {stats && (
-          <div style={{ display: "flex", gap: "24px", marginBottom: "32px" }}>
+          <div className="admin-stats">
             {[
-              { label: "Users", value: stats.users },
-              { label: "Sessions", value: stats.sessions },
-              { label: "Messages", value: stats.messages },
+              { label: "Пользователи", value: stats.users },
+              { label: "Сессии", value: stats.sessions },
+              { label: "Сообщения", value: stats.messages },
             ].map((s) => (
-              <div
-                key={s.label}
-                style={{
-                  padding: "16px 24px",
-                  background: "#f5f5f5",
-                  borderRadius: "8px",
-                  minWidth: "120px",
-                }}
-              >
-                <div style={{ fontSize: "28px", fontWeight: "bold" }}>{s.value}</div>
-                <div style={{ color: "#666" }}>{s.label}</div>
+              <div key={s.label} className="admin-stat-card">
+                <div className="admin-stat-value">{s.value}</div>
+                <div className="admin-stat-label">{s.label}</div>
               </div>
             ))}
           </div>
         )}
 
-        <h2>Upload Document</h2>
-        <div style={{ display: "flex", gap: "12px", alignItems: "center", marginBottom: "8px" }}>
+        <h2 className="admin-section-title">Загрузить документ</h2>
+        <div className="admin-upload-row">
           <input
             type="file"
             accept=".pdf,.csv,.txt,.docx"
+            className="admin-file-input"
             onChange={(e) => setFile(e.target.files[0])}
           />
-          <button onClick={uploadFile} disabled={uploading || !file}>
-            {uploading ? "Uploading..." : "Upload"}
+          <button
+            className="admin-upload-btn"
+            onClick={uploadFile}
+            disabled={uploading || !file}
+          >
+            {uploading ? "Загрузка..." : "Загрузить"}
           </button>
         </div>
-        {uploadMsg && <p style={{ color: uploadMsg.includes("failed") ? "red" : "green" }}>{uploadMsg}</p>}
+        {uploadMsg && (
+          <p className={uploadMsg.toLowerCase().includes("fail") || uploadMsg.toLowerCase().includes("error") ? "admin-msg-error" : "admin-msg-success"}>
+            {uploadMsg}
+          </p>
+        )}
 
-        <h2 style={{ marginTop: "32px" }}>Users</h2>
-        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <h2 className="admin-section-title" style={{ marginTop: "32px" }}>Пользователи</h2>
+        <table className="admin-table">
           <thead>
             <tr>
-              {["Username", "Email", "Role", "Verified", "Active", "Actions"].map((h) => (
-                <th
-                  key={h}
-                  style={{ border: "1px solid #ddd", padding: "10px", textAlign: "left", background: "#f5f5f5" }}
-                >
-                  {h}
-                </th>
+              {["Имя", "Email", "Роль", "Подтверждён", "Активен", "Действия"].map((h) => (
+                <th key={h}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {users.map((u) => (
               <tr key={u.id}>
-                <td style={{ border: "1px solid #ddd", padding: "10px" }}>{u.username}</td>
-                <td style={{ border: "1px solid #ddd", padding: "10px" }}>{u.email}</td>
-                <td style={{ border: "1px solid #ddd", padding: "10px" }}>{u.role}</td>
-                <td style={{ border: "1px solid #ddd", padding: "10px" }}>{u.is_verified ? "✅" : "❌"}</td>
-                <td style={{ border: "1px solid #ddd", padding: "10px" }}>{u.is_active ? "✅" : "❌"}</td>
-                <td style={{ border: "1px solid #ddd", padding: "10px" }}>
-                  <div style={{ display: "flex", gap: "8px" }}>
-                    <button onClick={() => updateUser(u.id, { role: u.role === "admin" ? "user" : "admin" })}>
-                      {u.role === "admin" ? "Remove Admin" : "Make Admin"}
+                <td>{u.username}</td>
+                <td>{u.email}</td>
+                <td>
+                  <span className={`role-badge ${u.role}`}>{u.role}</span>
+                </td>
+                <td>{u.is_verified ? "✅" : "❌"}</td>
+                <td>{u.is_active ? "✅" : "❌"}</td>
+                <td>
+                  <div className="admin-actions">
+                    <button
+                      className="admin-action-btn"
+                      onClick={() => updateUser(u.id, { role: u.role === "admin" ? "user" : "admin" })}
+                    >
+                      {u.role === "admin" ? "Снять админа" : "Сделать админом"}
                     </button>
-                    <button onClick={() => updateUser(u.id, { is_active: !u.is_active })}>
-                      {u.is_active ? "Deactivate" : "Activate"}
+                    <button
+                      className={`admin-action-btn ${u.is_active ? "danger" : ""}`}
+                      onClick={() => updateUser(u.id, { is_active: !u.is_active })}
+                    >
+                      {u.is_active ? "Деактивировать" : "Активировать"}
                     </button>
                   </div>
                 </td>

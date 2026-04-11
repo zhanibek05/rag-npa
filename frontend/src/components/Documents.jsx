@@ -1,9 +1,11 @@
 import { useState, useEffect, useRef } from "react"
 import axios from "axios"
+import { useAuth } from "../context/AuthContext"
 
 const API = "http://localhost:8000"
 
-function Documents({ token }) {
+function Documents() {
+  const { token } = useAuth()
   const [docs, setDocs] = useState([])
   const [total, setTotal] = useState(0)
   const [page, setPage] = useState(1)

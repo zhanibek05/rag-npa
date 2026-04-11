@@ -28,15 +28,15 @@ export default function VerifyEmail() {
     <div className="auth-page">
       <div className="auth-box">
         <h2>RAG Assistant</h2>
-        {status === "verifying" && <p>Verifying your email...</p>}
+        {status === "verifying" && <p className="verify-verifying">Проверяем email...</p>}
         {status === "success" && (
-          <p style={{ color: "green" }}>
-            ✅ Email verified! Redirecting to login...
+          <p className="verify-success">
+            ✅ Email подтверждён! Переходим в чат...
           </p>
         )}
         {status === "invalid" && (
-          <p style={{ color: "red" }}>
-            ❌ Invalid or expired verification link.
+          <p className="verify-error">
+            ❌ Недействительная или устаревшая ссылка подтверждения.
           </p>
         )}
       </div>

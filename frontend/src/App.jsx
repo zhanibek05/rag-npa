@@ -1,5 +1,5 @@
-import { useState, useEffect, useRef } from "react"
-import { Routes, Route, useNavigate, useParams, Navigate } from "react-router-dom"
+import { useState } from "react"
+import { Routes, Route, Navigate } from "react-router-dom"
 import axios from "axios"
 
 import { useAuth } from "./context/AuthContext"
@@ -15,11 +15,22 @@ import "./App.css"
 
 const API = "http://localhost:8000"
 
+function ProtectedRoute({ children, adminOnly = false }) {
+  const { user, loading } = useAuth()
+
+  if (loading) return <div>Загрузка...</div>
+  if (!user) return <Navigate to="/auth" replace />
+  if (adminOnly && user.role !== "admin") return <Navigate to="/" replace />
+
+  return children
+}
+
 function App() {
   const [messages, setMessages] = useState([])
   const [query, setQuery] = useState("")
   const [loading, setLoading] = useState(false)
   const [history, setHistory] = useState([])
+  const [mode, setMode] = useState("answer")
 
   const sendSuggestion = (text) => {
     sendMessage(null, text)
@@ -53,29 +64,61 @@ function App() {
   }
 
   return (
-    <div className="app">
-      <Sidebar history={history} />
-      <div className="chat-area">
-        <div className="messages">
-          {messages.map((m, i) => (
-            <ChatMessage
-              key={i}
-              message={m}
-              onSuggestionClick={!loading ? sendSuggestion : null}
-            />
-          ))}
-          {loading && (
-            <ChatMessage message={{ role: "assistant", text: "AI думает..." }} />
-          )}
-        </div>
-        <ChatInput
-          query={query}
-          setQuery={setQuery}
-          onSubmit={sendMessage}
-          loading={loading}
-        />
-      </div>
-    </div>
+    <Routes>
+      <Route path="/auth" element={<Auth />} />
+      <Route path="/verify-email" element={<VerifyEmail />} />
+      <Route
+        path="/"
+        element={
+          <ProtectedRoute>
+            <div className="app">
+              <Sidebar history={history} />
+              <div className="chat-area">
+                <div className="messages">
+                  {messages.map((m, i) => (
+                    <ChatMessage
+                      key={i}
+                      message={m}
+                      onSuggestionClick={!loading ? sendSuggestion : null}
+                    />
+                  ))}
+                  {loading && (
+                    <ChatMessage message={{ role: "assistant", text: "AI думает..." }} />
+                  )}
+                </div>
+                <ChatInput
+                  query={query}
+                  setQuery={setQuery}
+                  onSubmit={sendMessage}
+                  loading={loading}
+                  mode={mode}
+                  setMode={setMode}
+                />
+              </div>
+            </div>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/documents"
+        element={
+          <ProtectedRoute>
+            <div className="app">
+              <Sidebar history={history} />
+              <Documents />
+            </div>
+          </ProtectedRoute>
+        }
+      />
+      <Route
+        path="/admin"
+        element={
+          <ProtectedRoute adminOnly>
+            <AdminPanel />
+          </ProtectedRoute>
+        }
+      />
+    </Routes>
   )
 }
 

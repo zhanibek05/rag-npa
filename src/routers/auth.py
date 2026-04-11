@@ -89,8 +89,6 @@ async def login(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid credentials",
         )
-    if not user.is_verified:
-        raise HTTPException(status_code=403, detail="Please verify your email first")
     token = create_access_token(data={"sub": str(user.id)})
     return TokenResponse(access_token=token)
 
