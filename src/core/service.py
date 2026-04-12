@@ -1,8 +1,8 @@
-from typing import Dict, List, Tuple
+from typing import Dict, Generator, List, Tuple
 
 from .config import LLM_MODEL, LLM_PROVIDER
 from .context import build_context
-from .llm import generate_text
+from .llm import generate_text, stream_text
 from .retrieval import RetrievalEngine
 
 
@@ -58,10 +58,31 @@ class RAGService:
 
     def suggest(self, query: str, answer: str) -> List[str]:
         prompt = build_suggestions_prompt(query=query, answer=answer)
-        raw = ollama_generate(model=self.ollama_model, prompt=prompt, temperature=0.7)
+        raw = generate_text(model=self.llm_model, provider=self.llm_provider, prompt=prompt, temperature=0.7)
         lines = [
             line.strip().lstrip("-•*1234567890.). ")
             for line in raw.strip().splitlines()
             if line.strip()
         ]
         return lines[:3]
+
+    def answer_stream(self, query: str, top_k: int, max_context_chars: int) -> Generator[dict, None, None]:
+        hits, scores = self.search_with_scores(query=query, top_k=top_k)
+        context = build_context(hits, max_chars=max_context_chars)
+        prompt = build_prompt(query=query, context=context)
+
+        yield {"type": "sources", "hits": hits, "scores": scores}
+
+        full_answer = []
+        for token in stream_text(model=self.llm_model, provider=self.llm_provider, prompt=prompt):
+            full_answer.append(token)
+            yield {"type": "token", "text": token}
+
+        answer_text = "".join(full_answer)
+
+        try:
+            suggestions = self.suggest(query=query, answer=answer_text)
+        except Exception:
+            suggestions = []
+        yield {"type": "suggestions", "suggestions": suggestions}
+        yield {"type": "done"}
