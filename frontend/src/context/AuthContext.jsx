@@ -8,21 +8,18 @@ const AuthContext = createContext(null)
 export function AuthProvider({ children }) {
   const [user, setUser] = useState(null)
   const [token, setToken] = useState(() => localStorage.getItem("token"))
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(() => Boolean(localStorage.getItem("token")))
 
   useEffect(() => {
-    if (token) {
-      axios
-        .get(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
-        .then((res) => setUser(res.data))
-        .catch(() => {
-          localStorage.removeItem("token")
-          setToken(null)
-        })
-        .finally(() => setLoading(false))
-    } else {
-      setLoading(false)
-    }
+    if (!token) return
+    axios
+      .get(`${API}/auth/me`, { headers: { Authorization: `Bearer ${token}` } })
+      .then((res) => setUser(res.data))
+      .catch(() => {
+        localStorage.removeItem("token")
+        setToken(null)
+      })
+      .finally(() => setLoading(false))
   }, [token])
 
   const login = async (username, password) => {
@@ -58,4 +55,5 @@ export function AuthProvider({ children }) {
   )
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export const useAuth = () => useContext(AuthContext)

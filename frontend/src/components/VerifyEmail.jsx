@@ -7,22 +7,19 @@ const API = "http://localhost:8000"
 export default function VerifyEmail() {
   const [params] = useSearchParams()
   const navigate = useNavigate()
-  const [status, setStatus] = useState("verifying")
+  const token = params.get("token")
+  const [status, setStatus] = useState(token ? "verifying" : "invalid")
 
   useEffect(() => {
-    const token = params.get("token")
-    if (!token) {
-      setStatus("invalid")
-      return
-    }
+    if (!token) return
     axios
-      .get(`${API}/auth/verify?token=${token}`)
+      .get(`${API}/auth/verify?token=${encodeURIComponent(token)}`)
       .then(() => {
         setStatus("success")
         setTimeout(() => navigate("/"), 3000)
       })
       .catch(() => setStatus("invalid"))
-  }, [])
+  }, [navigate, token])
 
   return (
     <div className="auth-page">
@@ -31,12 +28,12 @@ export default function VerifyEmail() {
         {status === "verifying" && <p className="verify-verifying">Проверяем email...</p>}
         {status === "success" && (
           <p className="verify-success">
-            ✅ Email подтверждён! Переходим в чат...
+            Email подтверждён. Переходим в чат...
           </p>
         )}
         {status === "invalid" && (
           <p className="verify-error">
-            ❌ Недействительная или устаревшая ссылка подтверждения.
+            Недействительная или устаревшая ссылка подтверждения.
           </p>
         )}
       </div>

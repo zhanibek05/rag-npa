@@ -3,11 +3,15 @@ import ReactMarkdown from "react-markdown";
 function ChatMessage({ message, onSuggestionClick }) {
   return (
     <div className={`message ${message.role}`}>
+      <div className="message-avatar">
+        {message.role === "user" ? "Вы" : "AI"}
+      </div>
       <div className="bubble">
         <ReactMarkdown>{message.text}</ReactMarkdown>
 
         {message.sources && (
           <div className="sources">
+            <div className="sources-label">Источники</div>
             {message.sources.slice(0, 3).map((s, i) => (
               <div key={i} className="source">
                 {s.text.slice(0, 120)}...

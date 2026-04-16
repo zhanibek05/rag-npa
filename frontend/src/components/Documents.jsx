@@ -29,10 +29,13 @@ function Documents() {
       setDocs(res.data.items)
       setTotal(res.data.total)
       setPage(p)
-    } catch {}
+    } catch (err) {
+      console.error(err)
+    }
     setLoading(false)
   }
 
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => { load(1) }, [])
 
   const handleUpload = async (e) => {
@@ -60,7 +63,9 @@ function Documents() {
     try {
       await axios.delete(`${API}/documents/${id}`, { headers: authHeaders })
       load(page)
-    } catch {}
+    } catch (err) {
+      console.error(err)
+    }
   }
 
   const totalPages = Math.ceil(total / PAGE_SIZE)
@@ -68,13 +73,18 @@ function Documents() {
   return (
     <div className="docs-page">
       <div className="docs-header">
-        <h2>База документов</h2>
+        <div>
+          <span className="workspace-kicker">Document vault</span>
+          <h2>База документов</h2>
+        </div>
         <span className="docs-count">{total} документов</span>
       </div>
 
-      {/* Upload form */}
       <form className="upload-form" onSubmit={handleUpload}>
-        <div className="upload-form-title">Добавить документ</div>
+        <div className="upload-form-title">
+          <span>Добавить документ</span>
+          <small>.docx .pdf .txt</small>
+        </div>
         <div className="upload-row">
           <input
             className="upload-title-input"
@@ -93,7 +103,12 @@ function Documents() {
               onChange={(e) => setFile(e.target.files[0])}
               required
             />
-            {file ? file.name : "Выбрать файл (.docx, .pdf, .txt)"}
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <path d="M17 8l-5-5-5 5"/>
+              <path d="M12 3v12"/>
+            </svg>
+            <span>{file ? file.name : "Выбрать файл"}</span>
           </label>
           <button
             className="upload-btn"
@@ -111,56 +126,58 @@ function Documents() {
         <div className="docs-loading">Загрузка...</div>
       ) : (
         <>
-          <table className="docs-table">
-            <thead>
-              <tr>
-                <th>Название</th>
-                <th>Тип</th>
-                <th>Дата</th>
-                <th>Источник</th>
-                <th>Статус</th>
-                <th></th>
-              </tr>
-            </thead>
-            <tbody>
-              {docs.map((d) => (
-                <tr key={d.id}>
-                  <td className="doc-title-cell">
-                    {d.url && !d.url.startsWith("custom://") ? (
-                      <a href={d.url} target="_blank" rel="noreferrer" className="doc-link">
-                        {d.title || d.id}
-                      </a>
-                    ) : (
-                      <span>{d.title || d.id}</span>
-                    )}
-                  </td>
-                  <td className="doc-type-cell">{d.doc_type || "—"}</td>
-                  <td className="doc-date-cell">{d.adopted_date || "—"}</td>
-                  <td>
-                    <span className={`source-badge ${d.source}`}>
-                      {d.source === "custom" ? "Свой" : "Адилет"}
-                    </span>
-                  </td>
-                  <td>
-                    <span className={`status-badge ${d.index_status}`}>
-                      {d.index_status}
-                    </span>
-                  </td>
-                  <td>
-                    <button
-                      className="doc-delete-btn"
-                      onClick={() => handleDelete(d.id)}
-                      title="Удалить"
-                    >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
-                        <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>
-                      </svg>
-                    </button>
-                  </td>
+          <div className="table-shell">
+            <table className="docs-table">
+              <thead>
+                <tr>
+                  <th>Название</th>
+                  <th>Тип</th>
+                  <th>Дата</th>
+                  <th>Источник</th>
+                  <th>Статус</th>
+                  <th></th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody>
+                {docs.map((d) => (
+                  <tr key={d.id}>
+                    <td className="doc-title-cell">
+                      {d.url && !d.url.startsWith("custom://") ? (
+                        <a href={d.url} target="_blank" rel="noreferrer" className="doc-link">
+                          {d.title || d.id}
+                        </a>
+                      ) : (
+                        <span>{d.title || d.id}</span>
+                      )}
+                    </td>
+                    <td className="doc-type-cell">{d.doc_type || "—"}</td>
+                    <td className="doc-date-cell">{d.adopted_date || "—"}</td>
+                    <td>
+                      <span className={`source-badge ${d.source}`}>
+                        {d.source === "custom" ? "Свой" : "Адилет"}
+                      </span>
+                    </td>
+                    <td>
+                      <span className={`status-badge ${d.index_status}`}>
+                        {d.index_status}
+                      </span>
+                    </td>
+                    <td>
+                      <button
+                        className="doc-delete-btn"
+                        onClick={() => handleDelete(d.id)}
+                        title="Удалить"
+                      >
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M3 6h18M8 6V4h8v2M19 6l-1 14H6L5 6"/>
+                        </svg>
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
 
           {/* Pagination */}
           {totalPages > 1 && (

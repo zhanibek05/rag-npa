@@ -9,6 +9,10 @@ function ChatInput({ query, setQuery, onSubmit, loading, mode, setMode }) {
   return (
     <div className="input-container">
       <form className="input-card" onSubmit={onSubmit}>
+        <div className="input-topline">
+          <span>{mode === "search" ? "Search mode" : "Answer mode"}</span>
+          <span>{query.length} символов</span>
+        </div>
         <textarea
           className="input-textarea"
           value={query}
@@ -64,7 +68,6 @@ function ChatInput({ query, setQuery, onSubmit, loading, mode, setMode }) {
           </button>
         </div>
       </form>
-      <p className="input-hint">Enter — отправить · Shift+Enter — новая строка</p>
     </div>
   )
 }
